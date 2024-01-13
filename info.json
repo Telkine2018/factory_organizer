@@ -1,0 +1,14 @@
+{
+  "name": "factory_organizer",
+  "version": "1.0.0",
+  "title": "Factory Organizer",
+  "author": "Telkine2018",
+  "contact": "",
+  "homepage": "",
+  "description": "Help to organize a base. Can teleport a part of your base to another location",
+  "factorio_version": "1.1",
+  "dependencies": [
+		"base >= 1.1",
+		"flib >= 0.8.2"
+	]
+}
