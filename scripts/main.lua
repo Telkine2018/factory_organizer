@@ -988,13 +988,14 @@ function Teleporter.check_connection(info)
                 end
             end
             if entity.type == "electric-pole" then
-                local neighbours = entity.neighbours and
-                    entity.neighbours.copper
+                local neighbours = entity.neighbours and entity.neighbours.copper
                 if neighbours then
                     for wire_type, n in pairs(neighbours) do
-                        if wire_type == 'copper' and n.surface == surface and
-                            not entity.can_wires_reach(n) then
-                            entity.disconnect_neighbour(n)
+                        if n.surface == surface then
+                            local dist = tools.distance(entity.position, n.position)
+                            if not entity.can_wires_reach(n) or dist > entity.prototype.max_wire_distance then
+                                entity.disconnect_neighbour(n)
+                            end
                         end
                     end
                 end
