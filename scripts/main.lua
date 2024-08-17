@@ -415,21 +415,23 @@ function Teleporter.display_entities(info)
     local entity_ids = {}
     local surface = info.surface
     for _, entity in pairs(info.entities) do
-        local selection_box = entity.selection_box
-        if selection_box then
-            if info.rotation ~= 0 then
-                selection_box = Teleporter.rotate_box(info, selection_box)
+        if entity.valid then
+            local selection_box = entity.selection_box
+            if selection_box then
+                if info.rotation ~= 0 then
+                    selection_box = Teleporter.rotate_box(info, selection_box)
+                end
+                local id = rendering.draw_rectangle {
+                    surface = surface,
+                    left_top = selection_box.left_top,
+                    right_bottom = selection_box.right_bottom,
+                    color = { 0, 1, 1, 0.02 },
+                    width = 2,
+                    draw_on_ground = true,
+                    filled = true
+                }
+                table.insert(entity_ids, id)
             end
-            local id = rendering.draw_rectangle {
-                surface = surface,
-                left_top = selection_box.left_top,
-                right_bottom = selection_box.right_bottom,
-                color = { 0, 1, 1, 0.02 },
-                width = 2,
-                draw_on_ground = true,
-                filled = true
-            }
-            table.insert(entity_ids, id)
         end
     end
     info.entity_ids = entity_ids
@@ -986,13 +988,14 @@ function Teleporter.check_connection(info)
                 end
             end
             if entity.type == "electric-pole" then
-                local neighbours = entity.neighbours and
-                    entity.neighbours.copper
+                local neighbours = entity.neighbours and entity.neighbours.copper
                 if neighbours then
                     for wire_type, n in pairs(neighbours) do
-                        if wire_type == 'copper' and n.surface == surface and
-                            not entity.can_wires_reach(n) then
-                            entity.disconnect_neighbour(n)
+                        if n.surface == surface then
+                            local dist = tools.distance(entity.position, n.position)
+                            if not entity.can_wires_reach(n) or dist > entity.prototype.max_wire_distance then
+                                entity.disconnect_neighbour(n)
+                            end
                         end
                     end
                 end
