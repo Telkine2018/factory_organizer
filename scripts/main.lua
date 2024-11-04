@@ -54,7 +54,14 @@ local not_moveable_names = {
 
 local forbidden_names = {}
 
-local rail_types = { ["straight-rail"] = true, ["curved-rail"] = true }
+local rail_types = {
+    ["straight-rail"] = true,
+    ["curved-rail"] = true,
+    ["curved-rail-a"] = true,
+    ["curved-rail-b"] = true,
+    ["legacy-straight-rail"] = true,
+    ["legacy-curved-rail"] = true,
+}
 
 local belt_types = {
     ["linked-belt"] = true,
@@ -197,8 +204,8 @@ function Teleporter.move_boundary(info, dx, dy)
     dx = math.floor(dx)
     dy = math.floor(dy)
     for _, line in pairs(info.boundary) do
-        rendering.set_from(line.id, { line.p1.x + dx, line.p1.y + dy })
-        rendering.set_to(line.id, { line.p2.x + dx, line.p2.y + dy })
+        line.id.from = { line.p1.x + dx, line.p1.y + dy }
+        line.id.to = { line.p2.x + dx, line.p2.y + dy }
     end
 end
 
@@ -206,7 +213,7 @@ end
 function Teleporter.clear_boundary(info)
     if not info or not info.boundary then return end
 
-    for _, line in pairs(info.boundary) do rendering.destroy(line.id) end
+    for _, line in pairs(info.boundary) do line.id.destroy() end
 end
 
 ---@param info Teleporter
@@ -425,9 +432,9 @@ function Teleporter.display_entities(info)
                     surface = surface,
                     left_top = selection_box.left_top,
                     right_bottom = selection_box.right_bottom,
-                    color = { 0, 1, 1, 0.02 },
+                    color = { r = 0, g = 1.0, b = 1.0, a = 0.2 },
                     width = 2,
-                    draw_on_ground = true,
+                    draw_on_ground = false,
                     filled = true
                 }
                 table.insert(entity_ids, id)
@@ -435,15 +442,6 @@ function Teleporter.display_entities(info)
         end
     end
     info.entity_ids = entity_ids
-    if info.rotatable and not info.arrow_id then
-        info.arrow_id = rendering.draw_sprite {
-            surface = surface,
-            orientation = 0.25 * info.rotation,
-            sprite = prefix .. "-arrow",
-            render_layer = "cursor",
-            target = info.center
-        }
-    end
 end
 
 ---@param info Teleporter
@@ -451,15 +449,14 @@ function Teleporter.move_entities(info, dx, dy)
     local rdx = dx - info.previous_dx
     local rdy = dy - info.previous_dy
     for _, id in pairs(info.entity_ids) do
-        local left_top = rendering.get_left_top(id).position
-        rendering.set_left_top(id, { left_top.x + rdx, left_top.y + rdy })
-        local right_bottom = rendering.get_right_bottom(id).position
-        rendering.set_right_bottom(id,
-            { right_bottom.x + rdx, right_bottom.y + rdy })
+        local left_top = id.left_top.position --[[@as MapPosition]]
+        id.left_top = { x = left_top.x + rdx, y = left_top.y + rdy }
+        local right_bottom = id.right_bottom.position --[[@as MapPosition]]
+        id.right_bottom = { x = right_bottom.x + rdx, y = right_bottom.y + rdy }
     end
     if info.arrow_id then
-        local pos = rendering.get_target(info.arrow_id).position --[[@as MapPosition]]
-        rendering.set_target(info.arrow_id, { x = pos.x + rdx, y = pos.y + rdy })
+        local pos = info.arrow_id.target.position --[[@as MapPosition]]
+        info.arrow_id.target = { x = pos.x + rdx, y = pos.y + rdy }
     end
     info.previous_dx = dx
     info.previous_dy = dy
@@ -468,12 +465,8 @@ end
 ---@param info Teleporter
 function Teleporter.clear_display_entities(info)
     if info.entity_ids then
-        for _, id in pairs(info.entity_ids) do rendering.destroy(id) end
+        for _, id in pairs(info.entity_ids) do id.destroy() end
         info.entity_ids = nil
-    end
-    if info.arrow_id then
-        rendering.destroy(info.arrow_id)
-        info.arrow_id = nil
     end
 end
 
@@ -652,24 +645,29 @@ function Teleporter.get_compare_func(dx, dy)
 end
 
 local tranport_belt_fields = {
-    "enable_disable", "read_contents", "read_contents_mode",
-    "circuit_condition", "logistic_condition", "connect_to_logistic_network"
+    "circuit_enable_disable",
+    "circuit_condition",
+    "read_contents",
+    "read_contents_mode"
 }
 
 ---@param info Teleporter
+---@param ext EntityExtension
 local function transport_belt_apply(info, ext)
     local belt = info.entity_map[ext.unit_number]
 
     local cb = belt.get_or_create_control_behavior()
     for _, name in ipairs(tranport_belt_fields) do cb[name] = ext[name] end
+
     if ext.circuit_connection_definitions then
-        for _, c in pairs(ext.circuit_connection_definitions) do
-            local target_entity = c.target_entity
+        for _, connection in pairs(ext.circuit_connection_definitions) do
+            local target_entity = connection.target_entity
             if type(target_entity) == "number" then
                 target_entity = info.entity_map[tonumber(target_entity)]
             end
-            c.target_entity = target_entity
-            belt.connect_neighbour(c)
+            local connector1 = belt.get_wire_connector(connection.src_connector_id, true)
+            local connector2 = target_entity.get_wire_connector(connection.target_connector_id, true);
+            connector1.connect_to(connector2, true)
         end
     end
 end
@@ -679,6 +677,7 @@ local splitter_fields = {
 }
 
 ---@param info Teleporter
+---@param ext EntityExtension
 local function splitter_apply(info, ext)
     local belt = info.entity_map[ext.unit_number]
 
@@ -686,18 +685,29 @@ local function splitter_apply(info, ext)
 end
 
 ---@param info Teleporter
+---@param ext BeltUndergroundInfo
+local function underground_belt_apply(info, ext)
+    local belt = info.entity_map[ext.unit_number]
+end
+
+
+---@param info Teleporter
+---@param ext LoaderInfoExt
 local function loader_apply(info, ext)
     local belt = info.entity_map[ext.unit_number]
 
     belt.loader_type = ext.loader_type
+    --[[
     if ext.loader_type == "output" then
         belt.direction = tools.get_opposite_direction(belt.direction)
     end
+    ]]
 
     for i = 1, belt.filter_slot_count do belt.set_filter(i, ext.filters[i]) end
 end
 
 ---@param info Teleporter
+---@param ext LinkedBeltInfoExt
 local function linke_belt_apply(info, ext)
     local belt = info.entity_map[ext.unit_number]
 
@@ -712,7 +722,7 @@ local function linke_belt_apply(info, ext)
         if linked_belt_neighbour.linked_belt_type == 'input' then
             linked_belt_neighbour.linked_belt_type = 'output'
         else
-            linked_belt_neighbour.linked_belt_type = 'intput'
+            linked_belt_neighbour.linked_belt_type = 'input'
         end
     end
     belt.connect_linked_belts(linked_belt_neighbour)
@@ -729,13 +739,16 @@ function Teleporter.destroy_belts(info, dx, dy)
             if rotation_offset ~= 0 then
                 position = Teleporter.rotate_point(info, position)
             end
+            ---@type BeltInfo
             local belt_info = {
                 position = { position.x + dx, position.y + dy },
                 name = belt.name,
-                direction = (belt.direction + rotation_offset) % 8,
+                direction = (belt.direction + rotation_offset) % 16,
                 force = belt.force
             }
             table.insert(belt_infos, belt_info)
+
+            ---@type EntityExtension
             local ext = {}
             belt_info.ext = ext
             ext.unit_number = belt.unit_number
@@ -747,20 +760,24 @@ function Teleporter.destroy_belts(info, dx, dy)
                     for _, name in ipairs(tranport_belt_fields) do
                         ext[name] = cb[name]
                     end
-                    if belt.circuit_connection_definitions then
+                    local connectors = belt.get_wire_connectors(false)
+
+                    if connectors and #connectors > 0 then
                         ext.circuit_connection_definitions = {}
-                        for _, c in pairs(belt.circuit_connection_definitions) do
-                            ---@type any
-                            local target_entity = c.target_entity
-                            if info.entity_map[target_entity.unit_number] then
-                                target_entity = target_entity.unit_number
+                        for _, connector in pairs(connectors) do
+                            for _, connection in pairs(connector.connections) do
+                                ---@type EntityReference
+                                local target_entity = connection.target.owner
+
+                                if info.entity_map[target_entity.unit_number] then
+                                    target_entity = target_entity.unit_number
+                                end
+                                table.insert(ext.circuit_connection_definitions, {
+                                    src_connector_id = connector.wire_connector_id,
+                                    target_entity = target_entity,
+                                    target_connector_id = connection.target.wire_connector_id
+                                })
                             end
-                            table.insert(ext.circuit_connection_definitions, {
-                                wire = c.wire,
-                                target_entity = target_entity,
-                                source_circuit_id = c.source_circuit_id,
-                                target_circuit_id = c.target_circuit_id
-                            })
                         end
                     end
                 end
@@ -770,6 +787,7 @@ function Teleporter.destroy_belts(info, dx, dy)
                 end
                 ext.apply = splitter_apply
             elseif type == "loader" or type == "loader-1x1" then
+                belt_info.type = belt.loader_type
                 ext.filters = {}
                 for slot = 1, belt.filter_slot_count do
                     table.insert(ext.filters, belt.get_filter(slot))
@@ -780,35 +798,46 @@ function Teleporter.destroy_belts(info, dx, dy)
                 ext.apply = loader_apply
             elseif type == "underground-belt" then
                 belt_info.type = belt.belt_to_ground_type
+                ext.apply = underground_belt_apply
             elseif type == "linked-belt" then
                 ext.linked_belt_type = belt.linked_belt_type
                 if ext.linked_belt_type == 'output' then
-                    belt_info.direction =
-                        tools.get_opposite_direction(belt_info.direction)
+                    belt_info.direction = tools.get_opposite_direction(belt_info.direction)
                 end
 
                 ---@type any
                 local linked_belt_neighbour = belt.linked_belt_neighbour
                 if linked_belt_neighbour and linked_belt_neighbour.valid then
                     if info.entity_map[linked_belt_neighbour.unit_number] then
-                        linked_belt_neighbour =
-                            linked_belt_neighbour.unit_number
+                        linked_belt_neighbour = linked_belt_neighbour.unit_number
                     end
                     ext.linked_belt_neighbour = linked_belt_neighbour
                 end
                 ext.apply = linke_belt_apply
             end
+            ---@type ItemCountWithQuality[][]
             local lines
             for line_index = 1, belt.get_max_transport_line_index() do
                 local transport_line = belt.get_transport_line(line_index)
                 if transport_line then
-                    local contents = transport_line.get_contents()
+                    local contents = transport_line.get_detailed_contents()
                     if contents and table_size(contents) > 0 then
                         if not lines then
                             lines = {}
                             ext.lines = lines
                         end
-                        lines[line_index] = contents
+                        local line = {}
+                        lines[line_index] = line
+                        for _, detailedItem in pairs(contents) do
+                            local stack = detailedItem.stack
+                            table.insert(line, {
+                                name = stack.name,
+                                count = stack.count,
+                                quality = stack.quality,
+                                spoil_percent = stack.spoil_percent,
+                                health = stack.health
+                            })
+                        end
                     end
                 end
             end
@@ -832,13 +861,10 @@ function Teleporter.teleport(info, dx, dy)
     local rail_infos = {}
     for _, rail in pairs(info.rails) do
         local position = rail.position
-        if info.rotation ~= 0 then
-            position = Teleporter.rotate_point(info, position)
-        end
         local railInfo = {
             position = { position.x + dx, position.y + dy },
             name = rail.name,
-            direction = (rail.direction + rotation_offset) % 8,
+            direction = (rail.direction + rotation_offset) % 16,
             force = rail.force
         }
         table.insert(rail_infos, railInfo)
@@ -876,7 +902,7 @@ function Teleporter.teleport(info, dx, dy)
 
         local proto = entity.prototype
         local old_direction = entity.direction
-        local direction = (old_direction + rotation_offset) % 8
+        local direction = (old_direction + rotation_offset) % 16
 
         if not proto.flags["placeable-off-grid"] then
             if direction == 2 or direction == 6 then
@@ -958,9 +984,9 @@ function Teleporter.teleport(info, dx, dy)
             for line_index, contents in pairs(ext.lines) do
                 local transport_line = belt.get_transport_line(line_index)
                 local pos = 0
-                for item, count in pairs(contents) do
-                    local stack = { name = item, count = 1 }
-                    for i = 1, count do
+                for _, item in pairs(contents) do
+                    local stack = item
+                    for i = 1, item.count do
                         if not transport_line.insert_at(pos, stack) then
                             --tools.set_tracing(true)
                             --debug("Failed")
@@ -973,29 +999,31 @@ function Teleporter.teleport(info, dx, dy)
     end
 end
 
+---@param info Teleporter
 function Teleporter.check_connection(info)
     local surface = info.surface
     for _, entity in pairs(info.entities) do
         if entity.valid then
-            -- local neighbours = copper_wire_types[entity.type] and entity.neighbours or entity.circuit_connected_entities
-            local connections = entity.circuit_connection_definitions
-            if connections then
-                for _, connection in pairs(connections) do
-                    if connection.target_entity.surface == surface and
-                        not entity.can_wires_reach(connection.target_entity) then
-                        entity.disconnect_neighbour(connection)
-                    end
-                end
-            end
-            if entity.type == "electric-pole" then
-                local neighbours = entity.neighbours and entity.neighbours.copper
-                if neighbours then
-                    for wire_type, n in pairs(neighbours) do
-                        if n.surface == surface then
-                            local dist = tools.distance(entity.position, n.position)
-                            if not entity.can_wires_reach(n) or dist > entity.prototype.max_wire_distance then
-                                entity.disconnect_neighbour(n)
+            local connectors = entity.get_wire_connectors(false)
+            for _, connector in pairs(connectors) do
+                if entity.type == "electric-pole" then
+                    ---@type LuaWireConnector[]
+                    local to_remove
+                    for _, connection in pairs(connector.connections) do
+                        local target = connection.target
+                        if target.owner.surface == surface then
+                            if not connector.can_wire_reach(target) then
+                                if not to_remove then
+                                    to_remove = { target }
+                                else
+                                    table.insert(to_remove, target)
+                                end
                             end
+                        end
+                    end
+                    if to_remove then
+                        for _, connection in pairs(to_remove) do
+                            connector.disconnect_from(connection)
                         end
                     end
                 end
@@ -1057,7 +1085,7 @@ function Teleporter.check_collision(info, dx, dy)
                     name = entity.name,
                     force = entity.force,
                     position = position,
-                    direction = (entity.direction + 2 * info.rotation) % 8
+                    direction = (entity.direction + 2 * info.rotation) % 16
                 } then
                 local bb = entity.bounding_box
                 bb = {
@@ -1307,30 +1335,6 @@ script.on_event(prefix .. "-enter", --- @param e EventData.CustomInputEvent
         on_teleport(e)
     end)
 
---- @param e EventData.on_lua_shortcut
-script.on_event(prefix .. "-rotate", function(e)
-    local player = game.players[e.player_index]
-
-    --- @type Teleporter
-    local info
-    info = tools.get_vars(player).info
-    if not info then return end
-    if not info.rotatable then
-        player.print({ "factory_organizer-message.cannot_rotate" })
-        return
-    end
-
-    info.rotation = (info.rotation + 1) % 4
-    info.matrix = rotation_matrix[info.rotation + 1]
-
-    Teleporter.clear_display_entities(info)
-    Teleporter.display_entities(info)
-    local dx = info.previous_dx
-    local dy = info.previous_dy
-    info.previous_dx = 0
-    info.previous_dy = 0
-    Teleporter.move_entities(info, dx, dy)
-end)
 
 ---@param names string[]
 function Teleporter.add_forbidden(names)
