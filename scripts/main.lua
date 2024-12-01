@@ -905,7 +905,7 @@ function Teleporter.teleport(info, dx, dy)
         local direction = (old_direction + rotation_offset) % 16
 
         if not proto.flags["placeable-off-grid"] then
-            if direction == 2 or direction == 6 then
+            if direction == 4 or direction == 12 then
                 if proto.tile_height % 2 == 0 then
                     x = math.floor(x)
                 else
