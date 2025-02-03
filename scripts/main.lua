@@ -815,7 +815,7 @@ function Teleporter.destroy_belts(info, dx, dy)
                 end
                 ext.apply = linke_belt_apply
             end
-            ---@type ItemCountWithQuality[][]
+            ---@type ItemWithQualityCounts[][]
             local lines
             for line_index = 1, belt.get_max_transport_line_index() do
                 local transport_line = belt.get_transport_line(line_index)

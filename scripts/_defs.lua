@@ -46,7 +46,7 @@ local tools = require("scripts.tools")
 
 ---@class BeltBase
 ---@field apply any
----@field lines  ItemCountWithQuality[][]
+---@field lines  ItemWithQualityCounts[][]
 ---@field unit_number integer
 
 ---@class BeltInfoExt : BeltBase

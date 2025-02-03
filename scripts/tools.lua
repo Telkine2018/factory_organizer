@@ -281,7 +281,7 @@ end
 
 ------------------------------------------------
 
----@param event integer
+---@param event integer|defines.events
 ---@param handler fun(EventData)
 ---@param filters ({["filter"]:string}|{["name"]:string})[]?
 function tools.on_event(event, handler, filters)
@@ -1169,7 +1169,7 @@ end
 
 -------------------------------------
 
----@param signal SignalFilter | ItemCountWithQuality
+---@param signal SignalFilter | ItemWithQualityCounts
 ---@return string?
 function tools.signal_to_id(signal)
     if not signal then return nil end
