@@ -11,35 +11,22 @@ data:extend
     name = prefix .. "-tools",
     order = "f[actory]-a[nalyzer]",
     action = "lua",
-    icon =
-    {
-      filename = png("icons/tool-x32"),
-      priority = "extra-high-no-scale",
-      size = 32,
-      scale = 1,
-      flags = { "gui-icon" }
-    },
-    small_icon =
-    {
-      filename = png("icons/tool-x24"),
-      priority = "extra-high-no-scale",
-      size = 24,
-      scale = 1,
-      flags = { "gui-icon" }
-    },
+    icon = png("icons/tool-x32"),
+    icon_size = 32,
+    small_icon = png("icons/tool-x24"),
+    small_icon_size = 24
   },
 }
 
 
 local controls = {
-  {
-    type = "custom-input",
-    name = prefix .. "-start_teleport",
-    key_sequence = "CONTROL + K",
-    consuming = "none"
-  },
-  {
-    type = "custom-input",
+    {
+      type = "custom-input",
+      name = prefix .. "-start_teleport",
+      key_sequence = "CONTROL + K",
+      consuming = "none"
+    },
+    {    type = "custom-input",
     name = prefix .. "-escape",
     key_sequence = "ESCAPE",
     consuming = "none"
@@ -54,13 +41,18 @@ local selection_tool = {
   name = prefix .. "-selection_tool",
   icon = png("icons/selection-tool"),
   icon_size = 32,
-  selection_color = { r=0, g=0, b=1 },
-  alt_selection_color = { r=1, g=0, b=0 },
-  selection_mode = {"same-force", "any-entity" },
-  alt_selection_mode = {"same-force","any-entity"},
-  selection_cursor_box_type = "entity",
-  alt_selection_cursor_box_type =  "entity",
-  flags = {"hidden", "not-stackable", "only-in-cursor", "spawnable"},
+
+  select = {
+    border_color = { r=0, g=0, b=1 },
+    cursor_box_type = "entity",
+    mode = {"same-force", "any-entity" }
+  },
+  alt_select = {
+    border_color = { r=0, g=0, b=1 },
+    cursor_box_type = "entity",
+    mode = {"same-force", "any-entity" }
+  },
+  flags = {"not-stackable", "only-in-cursor", "spawnable"},
   subgroup = "other",
   stack_size = 1,
   stackable = false,
@@ -94,11 +86,6 @@ data:extend {
     type = "custom-input",
     name = prefix .. "-enter",
     key_sequence = "CONTROL + ENTER"
-  },
-  {
-    type = "custom-input",
-    name = prefix .. "-rotate",
-    key_sequence = "R"
   }
 
 }

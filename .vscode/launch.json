@@ -11,7 +11,6 @@
             "hookSettings": false,
             "hookData": false,
             "hookMode": "debug",
-            "checkGlobals": ["factory_organizer" ],
             "hookControl": ["factory_organizer"],
             "adjustMods": {
                 "factory_organizer" : true
@@ -22,7 +21,6 @@
             "request": "launch",
             "name": "Factorio Mod Debug (Profile)",
             "hookMode": "profile",
-            "checkGlobals": ["factory_organizer" ],
             "hookControl": ["factory_organizer"],
             "adjustMods": {
                 "factory_organizer" : true

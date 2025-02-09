@@ -1,4 +1,3 @@
-
 local tools = require("scripts.tools")
 
 
@@ -8,6 +7,7 @@ local tools = require("scripts.tools")
 ---@class Boundary
 ---@field p1 BoundaryPoint
 ---@field p2 BoundaryPoint
+---@field id LuaRenderObject
 
 ---@class Teleporter
 ---@field tile_map table<string, LuaTile>
@@ -21,8 +21,8 @@ local tools = require("scripts.tools")
 ---@field previous_dy integer
 ---@field move_x integer
 ---@field move_y integer
----@field entity_ids integer[]
----@field arrow_id integer
+---@field entity_ids LuaRenderObject[]
+---@field arrow_id LuaRenderObject
 ---@field entities LuaEntity[]
 ---@field entity_map table<integer, LuaEntity>
 ---@field rails LuaEntity[]
@@ -32,6 +32,43 @@ local tools = require("scripts.tools")
 ---@field matrix int[][]
 ---@field center MapPosition
 
+---@class BeltInfo
+---@field position MapPosition
+---@field name string
+---@field direction defines.direction
+---@field force LuaForce
+---@field type string
+---@field filters InventoryFilter[]
+---@field ext EntityExtension
 
+---@alias EntityExtension BeltInfoExt | LoaderInfoExt | BeltUndergroundInfo | LinkedBeltInfoExt
+---@alias EntityReference int | LuaEntity
+
+---@class BeltBase
+---@field apply any
+---@field lines  ItemWithQualityCounts[][]
+---@field unit_number integer
+
+---@class BeltInfoExt : BeltBase
+---@field type string
+---@field circuit_connection_definitions CircuitConnectionDefinition[]
+
+---@class LoaderInfoExt : BeltBase
+---@field filters ItemFilter[]
+---@field loader_type string
+---@field position MapPosition
+---@field name string
+
+---@class LinkedBeltInfoExt : BeltBase
+---@field linked_belt_type string
+---@field linked_belt_neighbour EntityReference
+
+---@class BeltUndergroundInfo : BeltBase
+---@field type string
+
+---@class CircuitConnectionDefinition
+---@field  src_connector_id defines.wire_connector_id
+---@field  target_entity  EntityReference
+---@field  target_connector_id  defines.wire_connector_id
 
 
