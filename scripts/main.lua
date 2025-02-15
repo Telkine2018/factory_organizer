@@ -893,63 +893,65 @@ function Teleporter.teleport(info, dx, dy)
     end
 
     for _, entity in pairs(entities) do
-        local position = entity.position
-        if rotation_offset ~= 0 then
-            position = Teleporter.rotate_point(info, position)
-        end
-        local x = position.x + dx
-        local y = position.y + dy
+        if entity.valid then
+            local position = entity.position
+            if rotation_offset ~= 0 then
+                position = Teleporter.rotate_point(info, position)
+            end
+            local x = position.x + dx
+            local y = position.y + dy
 
-        local proto = entity.prototype
-        local old_direction = entity.direction
-        local direction = (old_direction + rotation_offset) % 16
+            local proto = entity.prototype
+            local old_direction = entity.direction
+            local direction = (old_direction + rotation_offset) % 16
 
-        if not proto.flags["placeable-off-grid"] then
-            if direction == 4 or direction == 12 then
-                if proto.tile_height % 2 == 0 then
-                    x = math.floor(x)
+            if not proto.flags["placeable-off-grid"] then
+                if direction == 4 or direction == 12 then
+                    if proto.tile_height % 2 == 0 then
+                        x = math.floor(x)
+                    else
+                        x = math.floor(x) + 0.5
+                    end
+                    if proto.tile_width % 2 == 0 then
+                        y = math.floor(y)
+                    else
+                        y = math.floor(y) + 0.5
+                    end
                 else
-                    x = math.floor(x) + 0.5
-                end
-                if proto.tile_width % 2 == 0 then
-                    y = math.floor(y)
-                else
-                    y = math.floor(y) + 0.5
-                end
-            else
-                if proto.tile_width % 2 == 0 then
-                    x = math.floor(x)
-                else
-                    x = math.floor(x) + 0.5
-                end
-                if proto.tile_height % 2 == 0 then
-                    y = math.floor(y)
-                else
-                    y = math.floor(y) + 0.5
+                    if proto.tile_width % 2 == 0 then
+                        x = math.floor(x)
+                    else
+                        x = math.floor(x) + 0.5
+                    end
+                    if proto.tile_height % 2 == 0 then
+                        y = math.floor(y)
+                    else
+                        y = math.floor(y) + 0.5
+                    end
                 end
             end
-        end
 
-        if rotation_offset ~= 0 then entity.direction = direction end
-        entity.teleport({ x, y }, nil, true)
+            if rotation_offset ~= 0 then entity.direction = direction end
+            entity.teleport({ x, y }, nil, true)
 
-        local call = teleport_methods_by_name[entity.name]
-        if call then
-            remote.call(call.interface, call.method, {
-                entity = entity,
-                old_pos = position,
-                old_direction = old_direction
-            })
-        end
-
-        local calls = teleport_methods_by_type[entity.type]
-        if calls then
-            for _, call in pairs(calls) do
+            local call = teleport_methods_by_name[entity.name]
+            if call then
                 remote.call(call.interface, call.method, {
                     entity = entity,
                     old_pos = position,
                     old_direction = old_direction
                 })
+            end
+
+            local calls = teleport_methods_by_type[entity.type]
+            if calls then
+                for _, call in pairs(calls) do
+                    remote.call(call.interface, call.method, {
+                        entity = entity,
+                        old_pos = position,
+                        old_direction = old_direction
+                    })
+                end
             end
         end
     end
