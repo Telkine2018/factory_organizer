@@ -50,6 +50,7 @@ local not_moveable_names = {
     ["fluid-depot"] = true,
     ["fuel-depot"] = true,
     ["supply-depot"] = true,
+    ["rocket-silo"] = true
 }
 
 local forbidden_names = {}
@@ -729,6 +730,7 @@ local function linke_belt_apply(info, ext)
 end
 
 ---@param info Teleporter
+---@return BeltInfo[]
 function Teleporter.destroy_belts(info, dx, dy)
     local belt_infos = {}
     local rotation_offset = 2 * info.rotation
@@ -835,7 +837,8 @@ function Teleporter.destroy_belts(info, dx, dy)
                                 count = stack.count,
                                 quality = stack.quality,
                                 spoil_percent = stack.spoil_percent,
-                                health = stack.health
+                                health = stack.health,
+                                position = detailedItem.position
                             })
                         end
                     end
@@ -845,7 +848,6 @@ function Teleporter.destroy_belts(info, dx, dy)
     end
 
     for _, belt in pairs(info.belts) do belt.destroy() end
-
     return belt_infos
 end
 
@@ -963,7 +965,7 @@ function Teleporter.teleport(info, dx, dy)
     for _, belt_info in pairs(belt_infos) do
         local ext = belt_info.ext
         belt_info.ext = nil
-        local entity = info.surface.create_entity(belt_info)
+        local entity = info.surface.create_entity(belt_info --[[@as LuaSurface.create_entity_param ]])
         info.entity_map[ext.unit_number] = entity
         belt_info.ext = ext
     end
@@ -987,14 +989,11 @@ function Teleporter.teleport(info, dx, dy)
                 local transport_line = belt.get_transport_line(line_index)
                 local pos = 0
                 for _, item in pairs(contents) do
-                    local stack = item
-                    for i = 1, item.count do
-                        if not transport_line.insert_at(pos, stack) then
-                            --tools.set_tracing(true)
-                            --debug("Failed")
-                        end
-                        pos = pos + 0.25
-                    end
+                    local stack = item --[[@as ItemStackDefinition]]
+                    local pos = item.position
+                    local count = item.count
+                    item.position = nil
+                    transport_line.insert_at(pos, stack, count)
                 end
             end
         end

@@ -46,8 +46,16 @@ local tools = require("scripts.tools")
 
 ---@class BeltBase
 ---@field apply any
----@field lines  ItemWithQualityCounts[][]
+---@field lines  {[integer]:BeltLineContent[]}
 ---@field unit_number integer
+
+---@class BeltLineContent
+---@field name string
+---@field count integer
+---@field quality string
+---@field spoil_percent number
+---@field health number
+---@field position number
 
 ---@class BeltInfoExt : BeltBase
 ---@field type string
@@ -70,5 +78,3 @@ local tools = require("scripts.tools")
 ---@field  src_connector_id defines.wire_connector_id
 ---@field  target_entity  EntityReference
 ---@field  target_connector_id  defines.wire_connector_id
-
-
