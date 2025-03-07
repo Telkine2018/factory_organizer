@@ -1093,20 +1093,28 @@ function Teleporter.check_collision(info, dx, dy)
                     { bb.left_top.x + dx,     bb.left_top.y + dy },
                     { bb.right_bottom.x + dx, bb.right_bottom.y + dy }
                 }
+                local collision_mask = entity.prototype.collision_mask
                 local collidings = surface.find_entities_filtered { area = bb }
                 for _, colliding in pairs(collidings) do
                     if not collision_unrestricted_types[colliding.type] then
                         if colliding.unit_number and
                             not info.entity_map[colliding.unit_number] then
-                            failed = true
-                            rendering.draw_circle {
-                                surface = surface,
-                                color = { 1, 0, 0 },
-                                target = colliding.position,
-                                radius = 0.2,
-                                time_to_live = 120,
-                                filled = true
-                            }
+                            local cmask = colliding.prototype.collision_mask
+                            for layer, value in pairs(collision_mask.layers) do
+                                if value and cmask.layers[layer] then
+                                    failed = true
+                                    rendering.draw_circle {
+                                        surface = surface,
+                                        color = { 1, 0, 0 },
+                                        target = colliding.position,
+                                        radius = 0.2,
+                                        time_to_live = 120,
+                                        filled = true
+                                    }
+                                    game.print(colliding.prototype.localised_name)
+                                    break
+                                end
+                            end
                         end
                     end
                 end
