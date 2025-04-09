@@ -697,13 +697,9 @@ end
 local function loader_apply(info, ext)
     local belt = info.entity_map[ext.unit_number]
 
-    belt.loader_type = ext.loader_type
-    --[[
-    if ext.loader_type == "output" then
-        belt.direction = tools.get_opposite_direction(belt.direction)
-    end
-    ]]
+    if not belt then return end
 
+    belt.loader_type = ext.loader_type
     for i = 1, belt.filter_slot_count do belt.set_filter(i, ext.filters[i]) end
 end
 
@@ -887,9 +883,11 @@ function Teleporter.teleport(info, dx, dy)
 
     if next(preteleport_methods_by_name) then
         for _, entity in pairs(entities) do
-            local call = preteleport_methods_by_name[entity.name]
-            if call then
-                remote.call(call.interface, call.method, entity)
+            if entity.valid then
+                local call = preteleport_methods_by_name[entity.name]
+                if call then
+                    remote.call(call.interface, call.method, entity)
+                end
             end
         end
     end
