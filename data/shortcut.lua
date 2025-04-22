@@ -87,5 +87,10 @@ data:extend {
     name = prefix .. "-enter",
     key_sequence = "CONTROL + ENTER"
   }
-
 }
+
+data:extend {{
+  type = "custom-event",
+  name = "on_factory_organizer_move"
+}}
+

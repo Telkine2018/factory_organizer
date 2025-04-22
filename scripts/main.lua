@@ -943,6 +943,7 @@ function Teleporter.teleport(info, dx, dy)
         end
     end
 
+    local event_entities = {}
     for _, entity in pairs(entities) do
         if entity.valid then
             local position = entity.position
@@ -984,6 +985,7 @@ function Teleporter.teleport(info, dx, dy)
 
             if rotation_offset ~= 0 then entity.direction = direction end
             entity.teleport({ x, y }, nil, true)
+            table.insert(event_entities, entity)
 
             local call = teleport_methods_by_name[entity.name]
             if call then
@@ -1008,7 +1010,8 @@ function Teleporter.teleport(info, dx, dy)
     end
 
     for _, rail_info in pairs(rail_infos) do
-        info.surface.create_entity(rail_info)
+        local e = info.surface.create_entity(rail_info)
+        table.insert(event_entities, e)
     end
 
     for _, belt_info in pairs(belt_infos) do
@@ -1017,6 +1020,7 @@ function Teleporter.teleport(info, dx, dy)
         local entity = info.surface.create_entity(belt_info --[[@as LuaSurface.create_entity_param ]])
         info.entity_map[ext.unit_number] = entity
         belt_info.ext = ext
+        table.insert(event_entities, entity)
     end
 
     for _, belt_info in pairs(belt_infos) do
@@ -1048,6 +1052,11 @@ function Teleporter.teleport(info, dx, dy)
                 end
             end
         end
+    end
+
+    if table_size(event_entities) > 0 then
+        local data = { entities = event_entities }
+        script.raise_event("on_factory_organizer_move", data)
     end
 end
 
