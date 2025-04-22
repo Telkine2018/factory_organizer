@@ -657,6 +657,7 @@ local tranport_belt_fields = {
 ---@param fields string[]
 local function generic_belt_apply(info, ext, fields)
     local belt = info.entity_map[ext.unit_number]
+    if not belt then return end
 
     if ext.has_cb then
         local cb = belt.get_or_create_control_behavior()
@@ -669,9 +670,11 @@ local function generic_belt_apply(info, ext, fields)
             if type(target_entity) == "number" then
                 target_entity = info.entity_map[tonumber(target_entity)]
             end
-            local connector1 = belt.get_wire_connector(connection.src_connector_id, true)
-            local connector2 = target_entity.get_wire_connector(connection.target_connector_id, true);
-            connector1.connect_to(connector2, true)
+            if target_entity then
+                local connector1 = belt.get_wire_connector(connection.src_connector_id, true)
+                local connector2 = target_entity.get_wire_connector(connection.target_connector_id, true);
+                connector1.connect_to(connector2, true)
+            end
         end
     end
 end
@@ -691,6 +694,7 @@ local splitter_fields = {
 ---@param ext EntityExtension
 local function splitter_apply(info, ext)
     local belt = info.entity_map[ext.unit_number]
+    if not belt then return end
 
     for _, name in ipairs(splitter_fields) do belt[name] = ext[name] end
 end
@@ -698,7 +702,6 @@ end
 ---@param info Teleporter
 ---@param ext BeltUndergroundInfo
 local function underground_belt_apply(info, ext)
-    local belt = info.entity_map[ext.unit_number]
 end
 
 local transport_loader_fields = {
@@ -714,7 +717,6 @@ local transport_loader_fields = {
 ---@param ext LoaderInfoExt
 local function loader_apply(info, ext)
     local belt = info.entity_map[ext.unit_number]
-
     if not belt then return end
 
     belt.loader_type = ext.loader_type
@@ -734,6 +736,7 @@ end
 ---@param ext LinkedBeltInfoExt
 local function linke_belt_apply(info, ext)
     local belt = info.entity_map[ext.unit_number]
+    if not belt then return end
 
     if belt.linked_belt_neighbour then return end
     belt.linked_belt_type = ext.linked_belt_type
@@ -767,11 +770,13 @@ local function save_wire_connectors(belt, ext, info)
                 if info.entity_map[target_entity.unit_number] then
                     target_entity = target_entity.unit_number
                 end
-                table.insert(ext.circuit_connection_definitions, {
-                    src_connector_id = connector.wire_connector_id,
-                    target_entity = target_entity,
-                    target_connector_id = connection.target.wire_connector_id
-                })
+                if target_entity then
+                    table.insert(ext.circuit_connection_definitions, {
+                        src_connector_id = connector.wire_connector_id,
+                        target_entity = target_entity,
+                        target_connector_id = connection.target.wire_connector_id
+                    })
+                end
             end
         end
     end
@@ -831,12 +836,12 @@ function Teleporter.destroy_belts(info, dx, dy)
                 save_wire_connectors(belt, ext, info)
                 local cb = belt.get_control_behavior() --[[@as LuaLoaderControlBehavior]]
                 if cb then
-                    ext.has_cb                      = true
+                    ext.has_cb = true
                     for _, name in ipairs(transport_loader_fields) do
                         ext[name] = cb[name]
                     end
                 end
-                if belt.prototype.loader_adjustable_belt_stack_size  then
+                if belt.prototype.loader_adjustable_belt_stack_size then
                     ext.loader_belt_stack_size_override = belt.loader_belt_stack_size_override
                 end
                 ext.loader_filter_mode = belt.loader_filter_mode
@@ -1029,15 +1034,17 @@ function Teleporter.teleport(info, dx, dy)
         local ext = belt_info.ext
         if ext.lines then
             local belt = info.entity_map[ext.unit_number]
-            for line_index, contents in pairs(ext.lines) do
-                local transport_line = belt.get_transport_line(line_index)
-                local pos = 0
-                for _, item in pairs(contents) do
-                    local stack = item --[[@as ItemStackDefinition]]
-                    local pos = item.position
-                    local count = item.count
-                    item.position = nil
-                    transport_line.insert_at(pos, stack, count)
+            if belt then
+                for line_index, contents in pairs(ext.lines) do
+                    local transport_line = belt.get_transport_line(line_index)
+                    local pos = 0
+                    for _, item in pairs(contents) do
+                        local stack = item --[[@as ItemStackDefinition]]
+                        local pos = item.position
+                        local count = item.count
+                        item.position = nil
+                        transport_line.insert_at(pos, stack, count)
+                    end
                 end
             end
         end
