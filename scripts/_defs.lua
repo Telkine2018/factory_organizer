@@ -66,6 +66,15 @@ local tools = require("scripts.tools")
 ---@field loader_type string
 ---@field position MapPosition
 ---@field name string
+---@field has_cb boolean
+---@field circuit_set_filters boolean
+---@field circuit_read_transfers boolean
+---@field circuit_enable_disable boolean
+---@field circuit_condition CircuitConditionDefinition
+---@field connect_to_logistic_network boolean
+---@field logistic_condition  CircuitConditionDefinition
+---@field loader_filter_mode string
+---@field loader_belt_stack_size_override integer
 
 ---@class LinkedBeltInfoExt : BeltBase
 ---@field linked_belt_type string

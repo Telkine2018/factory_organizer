@@ -654,11 +654,14 @@ local tranport_belt_fields = {
 
 ---@param info Teleporter
 ---@param ext EntityExtension
-local function transport_belt_apply(info, ext)
+---@param fields string[]
+local function generic_belt_apply(info, ext, fields)
     local belt = info.entity_map[ext.unit_number]
 
-    local cb = belt.get_or_create_control_behavior()
-    for _, name in ipairs(tranport_belt_fields) do cb[name] = ext[name] end
+    if ext.has_cb then
+        local cb = belt.get_or_create_control_behavior()
+        for _, name in ipairs(fields) do cb[name] = ext[name] end
+    end
 
     if ext.circuit_connection_definitions then
         for _, connection in pairs(ext.circuit_connection_definitions) do
@@ -671,6 +674,13 @@ local function transport_belt_apply(info, ext)
             connector1.connect_to(connector2, true)
         end
     end
+end
+
+
+---@param info Teleporter
+---@param ext EntityExtension
+local function transport_belt_apply(info, ext)
+    generic_belt_apply(info, ext, tranport_belt_fields)
 end
 
 local splitter_fields = {
@@ -691,6 +701,14 @@ local function underground_belt_apply(info, ext)
     local belt = info.entity_map[ext.unit_number]
 end
 
+local transport_loader_fields = {
+    "circuit_set_filters",
+    "circuit_read_transfers",
+    "circuit_enable_disable",
+    "circuit_condition",
+    "connect_to_logistic_network",
+    "logistic_condition"
+}
 
 ---@param info Teleporter
 ---@param ext LoaderInfoExt
@@ -701,6 +719,15 @@ local function loader_apply(info, ext)
 
     belt.loader_type = ext.loader_type
     for i = 1, belt.filter_slot_count do belt.set_filter(i, ext.filters[i]) end
+
+    generic_belt_apply(info, ext, transport_loader_fields)
+
+    if ext.loader_filter_mode then
+        belt.loader_filter_mode = ext.loader_filter_mode
+    end
+    if ext.loader_belt_stack_size_override then
+        belt.loader_belt_stack_size_override = ext.loader_belt_stack_size_override
+    end
 end
 
 ---@param info Teleporter
@@ -723,6 +750,31 @@ local function linke_belt_apply(info, ext)
         end
     end
     belt.connect_linked_belts(linked_belt_neighbour)
+end
+
+---@param belt LuaEntity
+---@param ext EntityExtension
+---@param info Teleporter
+local function save_wire_connectors(belt, ext, info)
+    local connectors = belt.get_wire_connectors(false)
+    if connectors and #connectors > 0 then
+        ext.circuit_connection_definitions = {}
+        for _, connector in pairs(connectors) do
+            for _, connection in pairs(connector.connections) do
+                ---@type EntityReference
+                local target_entity = connection.target.owner
+
+                if info.entity_map[target_entity.unit_number] then
+                    target_entity = target_entity.unit_number
+                end
+                table.insert(ext.circuit_connection_definitions, {
+                    src_connector_id = connector.wire_connector_id,
+                    target_entity = target_entity,
+                    target_connector_id = connection.target.wire_connector_id
+                })
+            end
+        end
+    end
 end
 
 ---@param info Teleporter
@@ -754,30 +806,12 @@ function Teleporter.destroy_belts(info, dx, dy)
             if type == "transport-belt" then
                 local cb = belt.get_control_behavior() --[[@as LuaTransportBeltControlBehavior]]
                 if cb then
+                    ext.has_cb = true
                     ext.apply = transport_belt_apply
                     for _, name in ipairs(tranport_belt_fields) do
                         ext[name] = cb[name]
                     end
-                    local connectors = belt.get_wire_connectors(false)
-
-                    if connectors and #connectors > 0 then
-                        ext.circuit_connection_definitions = {}
-                        for _, connector in pairs(connectors) do
-                            for _, connection in pairs(connector.connections) do
-                                ---@type EntityReference
-                                local target_entity = connection.target.owner
-
-                                if info.entity_map[target_entity.unit_number] then
-                                    target_entity = target_entity.unit_number
-                                end
-                                table.insert(ext.circuit_connection_definitions, {
-                                    src_connector_id = connector.wire_connector_id,
-                                    target_entity = target_entity,
-                                    target_connector_id = connection.target.wire_connector_id
-                                })
-                            end
-                        end
-                    end
+                    save_wire_connectors(belt, ext, info)
                 end
             elseif type == "splitter" then
                 for _, name in ipairs(splitter_fields) do
@@ -794,6 +828,16 @@ function Teleporter.destroy_belts(info, dx, dy)
                 ext.position = belt.position
                 ext.name = belt.name
                 ext.apply = loader_apply
+                save_wire_connectors(belt, ext, info)
+                local cb = belt.get_control_behavior() --[[@as LuaLoaderControlBehavior]]
+                if cb then
+                    ext.has_cb                      = true
+                    for _, name in ipairs(transport_loader_fields) do
+                        ext[name] = cb[name]
+                    end
+                end
+                ext.loader_belt_stack_size_override = belt.loader_belt_stack_size_override
+                ext.loader_filter_mode = belt.loader_filter_mode
             elseif type == "underground-belt" then
                 belt_info.type = belt.belt_to_ground_type
                 ext.apply = underground_belt_apply
