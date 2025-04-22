@@ -836,7 +836,9 @@ function Teleporter.destroy_belts(info, dx, dy)
                         ext[name] = cb[name]
                     end
                 end
-                ext.loader_belt_stack_size_override = belt.loader_belt_stack_size_override
+                if belt.prototype.loader_adjustable_belt_stack_size  then
+                    ext.loader_belt_stack_size_override = belt.loader_belt_stack_size_override
+                end
                 ext.loader_filter_mode = belt.loader_filter_mode
             elseif type == "underground-belt" then
                 belt_info.type = belt.belt_to_ground_type
