@@ -38,7 +38,6 @@ local tools = require("scripts.tools")
 ---@field direction defines.direction
 ---@field force LuaForce
 ---@field type string
----@field filters InventoryFilter[]
 ---@field ext EntityExtension
 
 ---@alias EntityExtension BeltInfoExt | LoaderInfoExt | BeltUndergroundInfo | LinkedBeltInfoExt
